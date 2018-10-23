@@ -1,0 +1,28 @@
+Create New User (All data require)--> Username, password, Firstname, Lastname, IsAdmin, AmountAdded.
+
+User functions: SignUp(), SignIn(), ChangePassword(), CheckAmmount(), AddAmmount(), DeductAmount().(All functions can applicable for same userID)
+
+User Admin functions: UserFunctions(), DeleteUser().(Can delt any user by userID)
+
+
+
+Sign up:
+
+User--> Data--> Values(username) exist --> Sign up Error User already exist.
+User--> Data--> Values(username) NOT exist -->  Sign up Done.
+
+
+
+
+Login:
+
+User--> Data--> Values(username & password) exist --> Login Done.
+User--> Data--> Values(username & password) NOT exist --> Login Error User does not exist. 
+
+
+
+
+Delete user:
+
+If user delete account--> check is admin --> True --> DeleteUser().
+If user delete account--> check is admin --> False --> Return Message (User is not Admin). 
