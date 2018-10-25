@@ -7,6 +7,15 @@ mysql = MySQL()
 app = Flask(__name__)
 api = Api(app)
 
+app.config['MYSQL_DATABASE_USER'] = 'username'
+app.config['MYSQL_DATABASE_PASSWORD'] = '123456'
+app.config['MYSQL_DATABASE_DB'] = 'BankDB'
+app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+
+mysql.init_app(app)
+conn = mysql.connect()
+cursor = conn.cursor()
+
 user = MainUser()
 
 
@@ -20,14 +29,15 @@ def abort_user_isNotavailable(username):
 
 
 class User(Resource):
-    #def get(self):
 
+    #Update Method to update the Amount after Adding and Deducting
     def put(self, userid, amount):
         parser = reqparse.RequestParser()
         args = parser.parse_args()
         amount = {'amount': args['amount']}
         return amount, 201
 
+    #Delete Method to delete user
     def delete(self, currentid, userid):
         abort_user_isNotadmin(currentid)
         abort_user_isNotavailable(userid)
@@ -36,6 +46,7 @@ class User(Resource):
 
 
 class SignInUser(Resource):
+    #Post Method to sign In User /SignInUser?username=""&password=""
     def post(self):
         try:
             parser = reqparse.RequestParser()
@@ -53,6 +64,7 @@ class SignInUser(Resource):
 
 
 class SignUpUser(Resource):
+    #Post Method to Sign up new user /SignUpUser?username=""&password=""&.....(other data)
     def post(self):
         try:
             # Parse the arguments
@@ -72,7 +84,17 @@ class SignUpUser(Resource):
             _userAmount = args['amount']
             _userIsAdmin = args['isAdmin']
 
-            return {'username': args['username'], 'password': args['password'], 'firstname': args['firstname'], 'lastname': args['lastname'], 'amount': args['amount'], 'isAdmin': args['isAdmin']}
+            cursor.callproc('cpSignUpUser', (_userUsername, _userPassword, _userFirstname,
+                                             _userLastname, _userAmount, _userIsAdmin))
+            data = cursor.fetchall()
+            if len(data) is 0:
+                conn.commit()
+                return {'StatusCode': '200', 'Message': 'User creation success'}
+            else:
+                return {'StatusCode': '1000', 'Message': str(data[0])}
+
+            return {'username': args['username'], 'password': args['password'], 'firstname': args['firstname'],
+                    'lastname': args['lastname'], 'amount': args['amount'], 'isAdmin': args['isAdmin']}
 
         except Exception as e:
             return {'error': str(e)}
