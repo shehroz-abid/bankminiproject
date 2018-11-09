@@ -33,6 +33,9 @@ Queries:
 
 Sign up
 
+INSERT INTO `User` (`user_id`, `username`, `password`, `firstname`, `lastname`, `amount`, `is_admin`)
+ VALUES ('1', 'abc.def', '123456', 'Abc', 'Def', '10000', '1');
+
 IF EXISTS (SELECT * FROM User WHERE username = "username")
 print("Username already exist")
 ELSE
