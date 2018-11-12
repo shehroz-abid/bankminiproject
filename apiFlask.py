@@ -1,7 +1,9 @@
 import json
-from flask import *
-from flask_restful import abort, Api, Resource, request
+import os
+from flask import Flask, render_template, session, redirect, url_for
+from flask_restful import Api, request
 from flaskext.mysql import MySQL
+#from flask.ext.session import Session
 from MainUser import MainUser
 
 
@@ -12,7 +14,7 @@ app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 app.config['MYSQL_DATABASE_USER'] = 'root'
 app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'BankDB'
-
+app.secret_key = os.urandom(24)
 
 mysql.init_app(app)
 api = Api(app)
@@ -33,15 +35,15 @@ def abort_user_isNotavailable(username):
 """
 #Update Method to update the Amount after Adding and Deducting
 
+
 @app.route('/')
 def main():
     try:
-        if loginuser.get_username() == "":
-            return render_template('index.html')
-        else:
-            return render_template('dashboard.html', data = loginuser.get_data(),
-                                   amount=loginuser.get_amount(), password=loginuser.get_password())
+        if 'username' in session:
+            return redirect(url_for('success', name=loginuser.get_username()))
 
+        else:
+            return render_template('index.html')
 
     except Exception as e:
         return 'EXPOK'
@@ -58,10 +60,21 @@ def signout():
         loginuser.set_amount("")
         loginuser.set_isadmin("")
         loginuser.set_data("")
+        session.pop('username', None)
         return render_template('index.html')
 
     except Exception as e:
         return 'EXPOK'
+
+
+@app.route('/success/<name>')
+def success(name):
+    if 'username' in session:
+        return render_template('dashboard.html', data=loginuser.get_data(),
+                               amount=loginuser.get_amount(), password=loginuser.get_password())
+
+    else:
+        return render_template('signin.html')
 
 
 @app.route('/SignInUser', methods=['POST', 'GET'])
@@ -95,32 +108,31 @@ def sign_in_user():
                     loginuser.set_amount(data[0][5])
                     loginuser.set_isadmin(data[0][6])
 
-                    return render_template('dashboard.html', data = loginuser.get_data(),
-                                           amount=loginuser.get_amount(), password=loginuser.get_password())
-                    return {'Username': username, 'Password': password}
+                    session['username'] = loginuser.get_username()
+                    return redirect(url_for('success', name=loginuser.get_username()))
+                    #return render_template('dashboard.html', data = loginuser.get_data(),
+                    #                       amount=loginuser.get_amount(), password=loginuser.get_password())
+                    #return {'Username': username, 'Password': password}
                 else:
                     return 'InVLD PASS'
             else:
-                return 'NotOK'
-                return {'status': 100, 'message': 'Authentication failure'}
+                return 'USERNAMEInvalid'
+                #return {'status': 100, 'message': 'Authentication failure'}
 
         except Exception as e:
             return 'EXPOK,'+username+"  " + data2 + loginuser.get_username()
-            return {'error': str(e)}
+            #return {'error': str(e)}
 
+    elif 'username' in session:
+        return redirect(url_for('success', name=loginuser.get_username()))
     else:
-        if loginuser.get_username() == "":
-            return render_template('signin.html')
-        else:
-            return render_template('dashboard.html', data = loginuser.get_data(),
-                                   amount = loginuser.get_amount(), password = loginuser.get_password())
+        return render_template('signin.html')
 
 
 @app.route('/GetDataAll', methods=['GET'])
 def getalldata():
 
     try:
-
         conn = mysql.connect()
         cursor = conn.cursor()
 
@@ -135,7 +147,7 @@ def getalldata():
         return 'EXPOK'
 
 
-@app.route('/UpdatePassword',  methods=['POST', 'GET'])
+@app.route('/UpdatePassword', methods=['POST', 'GET'])
 def update_password():
     if request.method == 'POST':
 
@@ -153,21 +165,22 @@ def update_password():
                 conn.commit()
 
                 loginuser.set_password(new_password)
-                return render_template('dashboard.html', data=loginuser.get_data(),
-                                       amount=loginuser.get_amount(), password=loginuser.get_password())
-                return {'StatusCode': '200', 'Message': 'User Amount updated success'}
+                return redirect(url_for('success', name=loginuser.get_username()))
+                #return {'StatusCode': '200', 'Message': 'User Amount updated success'}
             else:
                 return 'PSWRD INValid'
 
         except Exception as e:
             return 'EXPOK'+loginuser.get_username()
-            return {'error': str(e)}
+            #return {'error': str(e)}
 
-    else:
+    elif 'username' in session:
         return render_template('changepassword.html')
+    else:
+        return render_template('signin.html')
 
 
-@app.route('/UpdateAmount',  methods=['POST', 'GET'])
+@app.route('/UpdateAmount', methods=['POST', 'GET'])
 def update_amount():
     if request.method == 'POST':
         try:
@@ -175,18 +188,13 @@ def update_amount():
 
             conn = mysql.connect()
             cursor = conn.cursor()
-
             '''user_amount = int.loginuser.get_amount()
-    
             if amount > 0:
                 new_amount = user_amount + amount
-    
             elif amount < 0:
                 new_amount = user_amount - amount
-    
             else:
                 return {"no change require"}'''
-
             sp_update_amount = "UPDATE `User` SET `amount` = %s WHERE `User`.`username` = %s"
             cursor.execute(sp_update_amount, (amount, loginuser.get_username()))
             conn.commit()
@@ -194,24 +202,23 @@ def update_amount():
 
             loginuser.set_amount(amount)
 
-            return render_template('dashboard.html', data = loginuser.get_data() ,
-                                   amount= loginuser.get_amount(), password = loginuser.get_password())
-            return {'StatusCode': '200', 'Message': 'User Amount updated success'}
+            return redirect(url_for('success', name=loginuser.get_username()))
+            #return {'StatusCode': '200', 'Message': 'User Amount updated success'}
 
         except Exception as e:
             return 'EXPOK'+amount+loginuser.get_username()
-            return {'error': str(e)}
+            #return {'error': str(e)}
+    elif 'username' in session:
+        return render_template('updateamount.html', amount=loginuser.get_amount())
     else:
-        return render_template('updateamount.html', amount = loginuser.get_amount())
+        return render_template('signin.html')
 
 #Delete Method to delete user
 
 
-@app.route('/DeleteUser/<string:delt_username>',  methods=['DELETE'])
+@app.route('/DeleteUser/<string:delt_username>', methods=['DELETE'])
 def delete_user(delt_username):
-
     try:
-
         conn = mysql.connect()
         cursor = conn.cursor()
 
@@ -257,8 +264,8 @@ def sign_up_user():
 
             sp_check_exist = "SELECT * FROM User WHERE username = %(username)s"
             cursor.execute(sp_check_exist, {'username': username})
-
             data = cursor.fetchall()
+
             if len(data) is 0:
                 sp_sign_up = "INSERT INTO `User` " \
                             "(`username`, `password`, `firstname`, `lastname`, `amount`, `is_admin`)" \
@@ -267,17 +274,14 @@ def sign_up_user():
                 cursor.execute(sp_sign_up, (username, password, firstname, lastname, amount, is_admin))
                 conn.commit()
                 return render_template('signin.html')
-                return {'StatusCode': '200', 'Message': 'User creation success'}
+                #return {'StatusCode': '200', 'Message': 'User creation success'}
             else:
                 return 'ElSEOK'
-                return {'StatusCode': '1000', 'Message': str(data[0])}
-
-            return {'username': _userUsername, 'password': _userPassword, 'firstname': _userFirstName,
-                    'lastname': _userLastName, 'amount': _userAmount, 'isAdmin': _userIsAdmin}
+                #return {'StatusCode': '1000', 'Message': str(data[0])}
 
         except Exception as e:
             return 'EXPOKZ'+username+password+firstname+lastname+amount+is_admin
-            return {'error': str(e)}
+            #return {'error': str(e)}
     else:
         return render_template('signup.html')
 
